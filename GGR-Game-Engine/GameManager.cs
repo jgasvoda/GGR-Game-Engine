@@ -9,13 +9,10 @@ namespace GGR_Game_Engine
     public class GameManager
     {
         private GameBoard Board { get; set; }
-        private int CurrentPlayer { get; set; }
+        private Player Player1 { get; set; }
+        private Player Player2 { get; set; }
+        private Player CurrentPlayer { get; set; }
 
-        private List<Piece> Player1Pieces { get; set; }
-        private int Player1Score { get; set; }
-
-        private List<Piece> Player2Pieces { get; set; }
-        private int Player2Score { get; set; }
 
         public GameManager()
         {
@@ -24,22 +21,22 @@ namespace GGR_Game_Engine
 
 
             //Add Pieces in starting locations
-            Player1Pieces = new List<Piece>();
-            Player2Pieces = new List<Piece>();
+            Player1 = new Player(1);
+            Player2 = new Player(2);
 
             for (int i = 0; i < 6; i++)
             {
                 if (i < 3)
                 {
-                    Player1Pieces.Add(new Piece(1, new Coordinates(i, 0, 0)));
+                    Player1.Pieces.Add(new Piece(1, new Coordinates(i, 0, 0)));
                 }
                 else
                 {
-                    Player2Pieces.Add(new Piece(2, new Coordinates(i, 0, 0)));
+                    Player2.Pieces.Add(new Piece(2, new Coordinates(i, 0, 0)));
                 }
             }
-
-            CurrentPlayer = 1;
+            
+            CurrentPlayer = Player1;
         }
 
         public int PlayGame()
@@ -47,27 +44,28 @@ namespace GGR_Game_Engine
             while(GetVictor() == 0)
             {
                 Console.WriteLine("Player " + CurrentPlayer + "'s Turn");
-                if (CurrentPlayer == 1)
+                
+                PlayerTurn(CurrentPlayer.Pieces);
+
+                if(CurrentPlayer.Team == 1)
                 {
-                    PlayerTurn(Player1Pieces);
+                    CurrentPlayer = Player2;
                 }
                 else
                 {
-                    PlayerTurn(Player2Pieces);
+                    CurrentPlayer = Player1;
                 }
-
-                CurrentPlayer = CurrentPlayer == 1 ? 2 : 1;
             }
             return GetVictor();
         }
 
         public int GetVictor()
         {
-            if (Player1Score >= 15)
+            if (Player1.Score >= 2)
             {
                 return 1;
             }
-            if (Player2Score >= 15)
+            if (Player2.Score >= 2)
             {
                 return 2;
             }
@@ -83,9 +81,10 @@ namespace GGR_Game_Engine
             {
                 Coordinates location = piece.CurrentLocation;
                 BoardSpace space = Board.Spaces[location.Section][location.Row][location.Position];
+                int amountMined = 0;
 
                 Console.WriteLine("Piece: " + location.ToString());
-                Console.WriteLine("Move Forward, Left, or Right? (L,R,F)");
+                Console.WriteLine("Move Forward, Left, or Right? (F,L,R) or Mine? (M)");
 
                 var response = Console.ReadLine();
                 switch(response)
@@ -99,9 +98,34 @@ namespace GGR_Game_Engine
                     case ("R"):
                         piece.Move(space.AdjacentSpaces[2]);
                         break;
+                    case ("M"):
+                        if(space.asteroid != null)
+                        {
+                            amountMined = space.asteroid.Mine(1);
+                            Console.WriteLine(amountMined + " mineral successfully mined!");
+                        }
+                        else
+                        {
+                            Console.WriteLine("No asteroid at this location");
+                        }
+                        
+                        break;
                 }
 
                 Console.WriteLine("Piece now at " + piece.CurrentLocation.ToString() + "\n");
+
+                piece.CollectGold(amountMined);
+
+                Coordinates newLocation = piece.CurrentLocation;
+                BoardSpace newSpace = Board.Spaces[newLocation.Section][newLocation.Row][newLocation.Position];
+                if (newSpace.asteroid != null)
+                {
+                    Console.WriteLine("Asteroid Discovered!\n");
+                }
+                else if(newLocation.Row == 0)
+                {
+                    CurrentPlayer.Score += piece.DepositGold();
+                }
             }
         }
     }
